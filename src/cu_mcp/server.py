@@ -663,10 +663,15 @@ def main() -> None:
         import os
         port = int(os.getenv("PORT", "8000"))
 
-        # Get the SSE ASGI app and run with uvicorn
-        # forwarded_allow_ips='*' trusts Render's proxy headers
+        # Get the SSE ASGI app and wrap with middleware to allow all hosts
+        # This is required for Render's Cloudflare proxy setup
         import uvicorn
+        from starlette.middleware.trustedhost import TrustedHostMiddleware
+
         app = mcp.sse_app()
+        # Allow all hosts (Render uses Cloudflare which changes the host header)
+        app = TrustedHostMiddleware(app, allowed_hosts=["*"])
+
         uvicorn.run(
             app,
             host="0.0.0.0",
