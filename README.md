@@ -2,7 +2,7 @@
 
 Query NCUA credit union data using natural language through Claude! This **Model Context Protocol (MCP)** server is **deployed on Render** - just add the URL to your Claude client and start asking questions. No installation required.
 
-🚀 **Live Server:** [Add your Render URL here after deployment]
+🚀 **Live Server:** https://cu-mcp.onrender.com
 
 Ask questions like:
 - "Show me the top 10 largest credit unions"
@@ -42,7 +42,7 @@ This server is deployed on Render. Just add the URL to your Claude client:
 ### For Claude Code CLI:
 ```bash
 claude mcp add --transport sse credit-union-analytics \
-  https://YOUR-RENDER-URL.onrender.com/sse
+  https://cu-mcp.onrender.com/sse
 ```
 
 ### For Claude Desktop:
@@ -52,7 +52,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "credit-union-analytics": {
       "transport": "sse",
-      "url": "https://YOUR-RENDER-URL.onrender.com/sse"
+      "url": "https://cu-mcp.onrender.com/sse"
     }
   }
 }
