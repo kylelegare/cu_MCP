@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import duckdb
 import pandas as pd
 
-try:  # FastMCP ships inside the official `mcp` package
-    from mcp.server.fastmcp import FastMCP
+try:  # FastMCP 2.x is a standalone package
+    from fastmcp import FastMCP
 except ImportError:  # pragma: no cover - helpful shim so module can be imported without FastMCP
     FastMCP = None  # type: ignore[assignment]
 
