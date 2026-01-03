@@ -1,8 +1,8 @@
 # Credit Union Analytics MCP Server
 
-Query NCUA credit union data using natural language through Claude! This **Model Context Protocol (MCP)** server is **deployed on Render** - just add the URL to your Claude client and start asking questions. No installation required.
+Query NCUA credit union data using natural language through Claude! This **Model Context Protocol (MCP)** server is **deployed on FastMCP Cloud** - just add the URL to your Claude client and start asking questions. No installation required.
 
-🚀 **Live Server:** https://cu-mcp.onrender.com
+🚀 **Live Server:** https://callreportmcp.fastmcp.app/mcp
 
 Ask questions like:
 - "Show me the top 10 largest credit unions"
@@ -31,17 +31,17 @@ To use this server, you just need **one of these**:
 - ✅ **Claude Desktop** - Desktop application
 - ✅ **Any MCP-compatible client**
 
-**No Python installation required** - the server is already hosted on Render!
+**No Python installation required** - the server is already hosted on FastMCP Cloud!
 
 ---
 
 ## 🚀 Using the Server (No Installation!)
 
-This server is deployed on Render. Just add the URL to your Claude client:
+This server is deployed on FastMCP Cloud. Just add the URL to your Claude client:
 
 ### For Claude Code CLI:
 ```bash
-claude mcp add credit-union-analytics https://cu-mcp.onrender.com/mcp
+claude mcp add --transport http credit-union-analytics https://callreportmcp.fastmcp.app/mcp
 ```
 
 ### For Claude Desktop:
@@ -50,7 +50,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "credit-union-analytics": {
-      "url": "https://cu-mcp.onrender.com/mcp"
+      "url": "https://callreportmcp.fastmcp.app/mcp"
     }
   }
 }
@@ -62,14 +62,14 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## 🛠️ Deploying Your Own Instance
 
-Want to deploy your own version? See **`RENDER_DEPLOYMENT.md`** for step-by-step instructions.
+Want to deploy your own version? Use **FastMCP Cloud** for the easiest deployment:
 
 **Quick version:**
 1. Fork this repo
-2. Sign up at Render.com (free)
+2. Sign up at **fastmcp.cloud** (free during beta)
 3. Connect your GitHub repo
-4. Deploy (takes 5 minutes)
-5. Get your URL and share it!
+4. Set entrypoint to: `src/cu_mcp/server.py:mcp`
+5. Deploy - your server will be live at `https://your-project.fastmcp.app/mcp`
 
 ---
 
