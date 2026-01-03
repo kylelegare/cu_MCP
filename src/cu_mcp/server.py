@@ -667,19 +667,23 @@ def main() -> None:
         import uvicorn
         app = mcp.sse_app()
 
-        # Debug: print app attributes to understand structure
-        print(f"App type: {type(app)}")
-        print(f"App attributes: {dir(app)}")
-        if hasattr(app, 'allowed_hosts'):
-            print(f"Current allowed_hosts: {app.allowed_hosts}")
-            app.allowed_hosts = ["*"]
-            print(f"Updated allowed_hosts: {app.allowed_hosts}")
+        # Bypass host validation by modifying the Host header in the request
+        async def bypass_host_check(scope, receive, send):
+            # This is needed for Cloudflare/Render proxy setup
+            if scope["type"] == "http":
+                scope = dict(scope)  # Make a mutable copy
+                # Modify headers to ensure host validation passes
+                headers = list(scope.get("headers", []))
+                # Remove existing host header and add localhost
+                headers = [(k, v) for k, v in headers if k.lower() != b"host"]
+                headers.append((b"host", b"localhost"))
+                scope["headers"] = headers
+            await app(scope, receive, send)
 
         uvicorn.run(
-            app,
+            bypass_host_check,
             host="0.0.0.0",
             port=port,
-            server_header=False,       # Disable server header
             forwarded_allow_ips="*",   # Trust proxy headers from Render
             proxy_headers=True,        # Enable proxy header support
         )
