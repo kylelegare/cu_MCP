@@ -23,7 +23,7 @@ DB_PATH = BASE_DIR / "data" / "cu_data.duckdb"
 MAX_ROWS = 1000
 QUERY_TIMEOUT_SECONDS = 10
 SAMPLE_ROW_LIMIT = 5
-FORBIDDEN_KEYWORDS = ["DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE"]
+FORBIDDEN_KEYWORDS = ["DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE", "ATTACH", "DETACH"]
 RECOMMENDATION = "Use the cu_with_ratios view for most analytical queries"
 
 TABLE_DESCRIPTIONS = {
@@ -62,7 +62,7 @@ COLUMN_DESCRIPTIONS = {
     "roa": "Return on Assets (annualized percentage)",
     "efficiency_ratio": "Operating expenses as % of revenue (lower is better, typical range 50-90%)",
     "operating_expense_ratio": "Operating expenses as % of assets (annualized, different from efficiency ratio)",
-    "loan_to_share_ratio": "Loan to share (deposit) ratio",
+    "loan_to_share_ratio": "Loan to share (deposit) ratio (typical range 70-90%)",
     "net_worth_ratio": "Net worth ratio (capital / assets)",
     "net_interest_margin": "Net interest income as % of assets (typical range 2-4%)",
     "non_interest_income_ratio": "Non-interest income as % of assets (annualized)",
@@ -475,7 +475,12 @@ def _table_type_to_string(table_type: str) -> str:
 # ---------------------------------------------------------------------------
 @mcp.tool()
 def execute_sql(query: str) -> Dict[str, Any]:
-    """Execute a validated SELECT query with strong safety guardrails."""
+    """Execute a read-only SELECT query against credit union data.
+
+    Safety: Only SELECT queries allowed. 10-second timeout, 1000-row limit.
+    Returns: JSON with 'data' array, 'row_count', and optional 'warning'.
+    Errors: Returns 'error' and 'hint' fields for troubleshooting.
+    """
 
     if query is None or not str(query).strip():
         return {"error": "Query cannot be empty", "query": query}
@@ -534,7 +539,12 @@ def is_safe_query(query: str) -> Tuple[bool, str]:
 
 @mcp.tool()
 def get_schema(table_name: Optional[str] = None) -> Dict[str, Any]:
-    """Return database metadata and optional table detail."""
+    """Get database schema information.
+
+    Without table_name: Returns list of all tables/views with descriptions.
+    With table_name: Returns columns, data types, row count, and 5 sample rows.
+    Recommendation: Start with cu_with_ratios view for most queries.
+    """
 
     with _get_connection() as conn:
         if not table_name:
@@ -617,7 +627,13 @@ def get_schema(table_name: Optional[str] = None) -> Dict[str, Any]:
 
 @mcp.tool()
 def get_example_queries(category: Optional[str] = None) -> Dict[str, Any]:
-    """Return SQL query templates organized by category."""
+    """Get curated SQL examples for common analysis patterns.
+
+    Categories: search, comparison, ranking, trends, financial_analysis
+    Without category: Returns all examples across categories.
+    With category: Returns examples for that category only.
+    All examples are ready to run as-is or modify as needed.
+    """
 
     if category:
         normalized = category.strip().lower()

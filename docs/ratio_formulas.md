@@ -32,4 +32,7 @@ All ratios are pre-computed in the `cu_with_ratios` view so downstream tools do 
 - Typical range for credit unions: 2-4%
 - Key indicator of lending profitability
 
+**Data Quality Note:**
+- Some large credit unions show $0 net income (and therefore 0% ROA) in recent quarters due to data reporting variations. This is a source data limitation, not a calculation error.
+
 Additional derived fields are documented inline in `src/cu_mcp/server.py` and surfaced through `get_schema()`.
