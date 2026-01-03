@@ -667,10 +667,13 @@ def main() -> None:
         import uvicorn
         app = mcp.sse_app()
 
-        # Disable host validation for Cloudflare proxy setup
-        # We need to patch the Starlette app's allowed_hosts
+        # Debug: print app attributes to understand structure
+        print(f"App type: {type(app)}")
+        print(f"App attributes: {dir(app)}")
         if hasattr(app, 'allowed_hosts'):
+            print(f"Current allowed_hosts: {app.allowed_hosts}")
             app.allowed_hosts = ["*"]
+            print(f"Updated allowed_hosts: {app.allowed_hosts}")
 
         uvicorn.run(
             app,
