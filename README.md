@@ -1,6 +1,15 @@
 # Credit Union Analytics MCP Server
 
-This project wraps the public NCUA credit union database in an easy-to-use **Model Context Protocol (MCP)** server. Once the server is running, modern AI assistants (Claude Desktop, Codex CLI/IDE, Gemini apps, etc.) can ask natural-language questions and automatically run safe SQL queries behind the scenes. The goal is to let anyone explore credit union trends without wrestling with spreadsheets or learning every database detail.
+Query NCUA credit union data using natural language through Claude! This **Model Context Protocol (MCP)** server is **deployed on Render** - just add the URL to your Claude client and start asking questions. No installation required.
+
+🚀 **Live Server:** [Add your Render URL here after deployment]
+
+Ask questions like:
+- "Show me the top 10 largest credit unions"
+- "Compare efficiency ratios for Washington credit unions"
+- "What's Navy Federal's ROA in the latest quarter?"
+
+The AI automatically queries 11 quarters of NCUA call report data with pre-calculated financial ratios.
 
 ---
 
@@ -15,112 +24,95 @@ This project wraps the public NCUA credit union database in an easy-to-use **Mod
 
 ---
 
-## Prerequisites
+## What You Need
 
-Before you begin, make sure you have:
+To use this server, you just need **one of these**:
+- ✅ **Claude Code CLI** - Command-line interface
+- ✅ **Claude Desktop** - Desktop application
+- ✅ **Any MCP-compatible client**
 
-### Required:
-- ✅ **Python 3.12 or higher**
-  - Check your version: `python3 --version`
-  - Download from: https://www.python.org/downloads/
-  - macOS with Homebrew: `brew install python@3.12`
-- ✅ **pip** (comes with Python)
-
-### Optional (choose one):
-- **Claude Code CLI** - For command-line usage (recommended for easiest setup)
-- **Claude Desktop** - For GUI usage
-- **Other MCP-compatible assistant** - Codex, Gemini, etc.
-
-> 💡 **Note:** The database file (`data/cu_data.duckdb`) is included and is 124MB. No separate download needed!
+**No Python installation required** - the server is already hosted on Render!
 
 ---
 
-## Deployment Options
+## 🚀 Using the Server (No Installation!)
 
-You have two ways to use this MCP server:
+This server is deployed on Render. Just add the URL to your Claude client:
 
-### Option 1: Local Installation (Run on Your Computer)
-Follow the "Quick start" instructions below.
-**Best for:** Personal use, testing, or when you want full control.
-
-### Option 2: Remote Deployment (Host on Render)
-Deploy to Render and share a URL with your team - no installation needed for users!
-**Best for:** Team use, sharing with colleagues, always-on access.
-
-📖 **See `RENDER_DEPLOYMENT.md` for full deployment instructions.**
-
-Quick Render deploy:
-1. Push code to GitHub
-2. Connect GitHub to Render
-3. Deploy (takes 5 minutes)
-4. Share the URL with anyone!
-
----
-
-## Quick start (15 minutes)
-1. **Navigate to the project folder & create a virtual environment**
-   ```bash
-   cd cu_MCP  # or wherever you saved the folder
-   /opt/homebrew/bin/python3.12 -m venv .venv   # adjust path for your OS
-   source .venv/bin/activate                     # Windows: .venv\Scripts\activate
-   ```
-
-2. **Install dependencies** (brings in MCP SDK, DuckDB, pandas):
-   ```bash
-   pip install -r requirements.txt
-   pip install -e .
-   ```
-
-3. **Verify the database exists**
-   - The database file is already included at `data/cu_data.duckdb`
-   - The server opens it in read-only mode, so you can't accidentally change the data
-
-4. **Run the MCP server**
-   ```bash
-   python -m cu_mcp.server
-   ```
-   Leave this terminal open; an MCP client will connect to it.
-
----
-
-## Connecting your assistant
-Every MCP client needs to know how to start the server. Here are common setups:
-
-### Claude Code CLI (Recommended - Easiest Setup)
-If you're using Claude Code CLI, simply run this command from your project directory:
-
-**⚠️ Important:** Replace `/absolute/path/to/cu_MCP` with the actual full path where you saved this folder!
-
+### For Claude Code CLI:
 ```bash
-# Example: if your folder is at /Users/john/Documents/cu_MCP, use:
-claude mcp add --transport stdio credit-union-analytics -- \
-  /Users/john/Documents/cu_MCP/.venv/bin/python -m cu_mcp.server
-
-# Windows example: if your folder is at C:\Users\john\cu_MCP, use:
-claude mcp add --transport stdio credit-union-analytics -- \
-  C:\Users\john\cu_MCP\.venv\Scripts\python.exe -m cu_mcp.server
+claude mcp add --transport sse credit-union-analytics \
+  https://YOUR-RENDER-URL.onrender.com/sse
 ```
 
-Verify it's connected:
-```bash
-claude mcp list
+### For Claude Desktop:
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "credit-union-analytics": {
+      "transport": "sse",
+      "url": "https://YOUR-RENDER-URL.onrender.com/sse"
+    }
+  }
+}
 ```
 
-You should see: `credit-union-analytics: ... - ✓ Connected`
+**That's it!** Now ask Claude questions about credit unions.
 
-**That's it!** Now just ask Claude Code natural language questions:
-- "Show me the top 10 largest credit unions"
-- "Compare efficiency ratios for Washington credit unions"
-- "What's Navy Federal's ROA in the latest quarter?"
+---
 
-Claude Code will automatically use the MCP server to query the database.
+## 🛠️ Deploying Your Own Instance
 
-### Claude Desktop
-Edit `claude_desktop_config.json`:
-- **macOS/Linux:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+Want to deploy your own version? See **`RENDER_DEPLOYMENT.md`** for step-by-step instructions.
 
-Add this configuration (replace `/absolute/path/to/cu_MCP` with your actual path):
+**Quick version:**
+1. Fork this repo
+2. Sign up at Render.com (free)
+3. Connect your GitHub repo
+4. Deploy (takes 5 minutes)
+5. Get your URL and share it!
+
+---
+
+## 💻 Local Development (Optional)
+
+If you want to run the server locally for development:
+
+<details>
+<summary>Click to expand local setup instructions</summary>
+
+### Prerequisites:
+- Python 3.12+
+- pip
+
+### Setup:
+```bash
+# Clone the repo
+git clone https://github.com/kylelegare/cu_MCP.git
+cd cu_MCP
+
+# Create virtual environment
+python3.12 -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -e .
+
+# Run the server
+python -m cu_mcp.server
+```
+
+### Connect locally:
+
+**Claude Code CLI:**
+```bash
+claude mcp add --transport stdio credit-union-analytics -- \
+  /absolute/path/to/cu_MCP/.venv/bin/python -m cu_mcp.server
+```
+
+**Claude Desktop** (`claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
@@ -132,25 +124,8 @@ Add this configuration (replace `/absolute/path/to/cu_MCP` with your actual path
   }
 }
 ```
-Restart Claude Desktop and you'll see the tools listed under "Servers".
 
-### Codex CLI / IDE
-Use the CLI helper (replace path with your actual path):
-```bash
-codex mcp add credit-union -- \
-  /absolute/path/to/cu_MCP/.venv/bin/python -m cu_mcp.server
-```
-This updates `~/.codex/config.toml`, so the CLI and IDE extension both recognize the server.
-
-### MCP Inspector (handy during development)
-The MCP SDK ships with a GUI inspector:
-```bash
-source .venv/bin/activate
-mcp dev src/cu_mcp/server.py
-```
-Use the Inspector UI to call each tool, inspect responses, and debug queries before involving an AI assistant.
-
-> 📝 **Environment variables?** Not required for this server. If you want to add custom config later (e.g., alternate database paths), you can extend `cu_mcp.server` and pass env vars via the MCP client config.
+</details>
 
 ---
 
