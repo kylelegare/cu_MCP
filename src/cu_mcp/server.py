@@ -663,11 +663,9 @@ def main() -> None:
         import os
         port = int(os.getenv("PORT", "8000"))
 
-        # Start with uvicorn directly to control host and port
+        # Get the SSE ASGI app and run with uvicorn
         import uvicorn
-        from mcp.server.fastmcp import get_fastmcp_app
-
-        app = get_fastmcp_app(mcp)
+        app = mcp.sse_app()
         uvicorn.run(app, host="0.0.0.0", port=port)
     else:
         # Run as stdio server for local use (Claude Desktop, Claude Code CLI)
