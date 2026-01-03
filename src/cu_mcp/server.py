@@ -657,13 +657,18 @@ def main() -> None:
         if arg == "--transport" and i + 1 < len(sys.argv):
             transport = sys.argv[i + 1]
 
-    # Get port from environment variable (Render sets $PORT)
-    port = int(os.getenv("PORT", "8000"))
-
     if transport == "sse":
         # Run as SSE server for remote access (Render, etc.)
-        # FastMCP uses uvicorn which reads port from --port or environment
-        mcp.run(transport="sse")
+        # Must bind to 0.0.0.0 for Render, and use PORT from environment
+        import os
+        port = int(os.getenv("PORT", "8000"))
+
+        # Start with uvicorn directly to control host and port
+        import uvicorn
+        from mcp.server.fastmcp import get_fastmcp_app
+
+        app = get_fastmcp_app(mcp)
+        uvicorn.run(app, host="0.0.0.0", port=port)
     else:
         # Run as stdio server for local use (Claude Desktop, Claude Code CLI)
         mcp.run()
