@@ -41,8 +41,7 @@ This server is deployed on Render. Just add the URL to your Claude client:
 
 ### For Claude Code CLI:
 ```bash
-claude mcp add --transport sse credit-union-analytics \
-  https://cu-mcp.onrender.com/sse
+claude mcp add credit-union-analytics https://cu-mcp.onrender.com/mcp
 ```
 
 ### For Claude Desktop:
@@ -51,8 +50,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "credit-union-analytics": {
-      "transport": "sse",
-      "url": "https://cu-mcp.onrender.com/sse"
+      "url": "https://cu-mcp.onrender.com/mcp"
     }
   }
 }

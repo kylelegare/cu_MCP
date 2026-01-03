@@ -657,35 +657,17 @@ def main() -> None:
         if arg == "--transport" and i + 1 < len(sys.argv):
             transport = sys.argv[i + 1]
 
-    if transport == "sse":
-        # Run as SSE server for remote access (Render, etc.)
-        # Must bind to 0.0.0.0 for Render, and use PORT from environment
+    if transport == "http":
+        # Run as HTTP server for remote access (Render, etc.)
+        # Use modern Streamable HTTP transport (recommended over legacy SSE)
         import os
         port = int(os.getenv("PORT", "8000"))
 
-        # Get the SSE ASGI app
-        import uvicorn
-        app = mcp.sse_app()
-
-        # Bypass host validation by modifying the Host header in the request
-        async def bypass_host_check(scope, receive, send):
-            # This is needed for Cloudflare/Render proxy setup
-            if scope["type"] == "http":
-                scope = dict(scope)  # Make a mutable copy
-                # Modify headers to ensure host validation passes
-                headers = list(scope.get("headers", []))
-                # Remove existing host header and add localhost
-                headers = [(k, v) for k, v in headers if k.lower() != b"host"]
-                headers.append((b"host", b"localhost"))
-                scope["headers"] = headers
-            await app(scope, receive, send)
-
-        uvicorn.run(
-            bypass_host_check,
+        # Streamable HTTP is the modern, recommended transport
+        mcp.run(
+            transport="streamable-http",
             host="0.0.0.0",
-            port=port,
-            forwarded_allow_ips="*",   # Trust proxy headers from Render
-            proxy_headers=True,        # Enable proxy header support
+            port=port
         )
     else:
         # Run as stdio server for local use (Claude Desktop, Claude Code CLI)
