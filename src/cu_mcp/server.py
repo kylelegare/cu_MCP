@@ -663,9 +663,9 @@ def main() -> None:
         import os
         port = int(os.getenv("PORT", "8000"))
 
-        # Streamable HTTP is the modern, recommended transport
+        # HTTP transport (uses Streamable HTTP protocol internally)
         mcp.run(
-            transport="streamable-http",
+            transport="http",
             host="0.0.0.0",
             port=port
         )
