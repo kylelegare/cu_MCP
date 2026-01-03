@@ -646,22 +646,24 @@ def get_example_queries(category: Optional[str] = None) -> Dict[str, Any]:
 def main() -> None:
     """Entry point for running via `python -m cu_mcp.server`."""
     import sys
+    import os
 
     _ensure_database()
 
     # Check for command-line arguments to determine transport mode
     transport = "stdio"  # default for local use
-    port = 8000  # default port for SSE
 
     for i, arg in enumerate(sys.argv):
         if arg == "--transport" and i + 1 < len(sys.argv):
             transport = sys.argv[i + 1]
-        elif arg == "--port" and i + 1 < len(sys.argv):
-            port = int(sys.argv[i + 1])
+
+    # Get port from environment variable (Render sets $PORT)
+    port = int(os.getenv("PORT", "8000"))
 
     if transport == "sse":
         # Run as SSE server for remote access (Render, etc.)
-        mcp.run(transport="sse", port=port)
+        # FastMCP uses uvicorn which reads port from --port or environment
+        mcp.run(transport="sse")
     else:
         # Run as stdio server for local use (Claude Desktop, Claude Code CLI)
         mcp.run()
