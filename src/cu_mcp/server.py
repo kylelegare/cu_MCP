@@ -664,9 +664,16 @@ def main() -> None:
         port = int(os.getenv("PORT", "8000"))
 
         # Get the SSE ASGI app and run with uvicorn
+        # forwarded_allow_ips='*' trusts Render's proxy headers
         import uvicorn
         app = mcp.sse_app()
-        uvicorn.run(app, host="0.0.0.0", port=port)
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=port,
+            forwarded_allow_ips="*",  # Trust proxy headers from Render
+            proxy_headers=True,        # Enable proxy header support
+        )
     else:
         # Run as stdio server for local use (Claude Desktop, Claude Code CLI)
         mcp.run()
