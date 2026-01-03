@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: credit-union-mcp
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && pip install -e .
+    startCommand: python -m cu_mcp.server --transport sse --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cu-mcp-server"
+version = "0.1.0"
+description = "Model Context Protocol server that exposes credit union analytics tools"
+authors = [
+    { name = "Credit Union Analytics" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.14.1",
+    "duckdb>=1.0.0",
+    "pandas>=2.0.0"
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.urls]
+Homepage = "https://example.com/cu-mcp-server"

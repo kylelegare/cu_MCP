@@ -1,0 +1,42 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Backup files
+*.backup
+*.bak
+
+# Distribution helper files (not for recipients)
+# These files help package the project but aren't needed by users
+DISTRIBUTION_CHECKLIST.md
+DISTRIBUTION_README.md
+FIXES_APPLIED.md
+EXAMPLE_QUERIES_EXPLAINED.md
+create_distribution.sh
