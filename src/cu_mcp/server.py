@@ -689,8 +689,7 @@ def main() -> None:
             transport = sys.argv[i + 1]
 
     if transport == "http":
-        # Run as HTTP server for remote access (Render, etc.)
-        # Use modern Streamable HTTP transport (recommended over legacy SSE)
+        # Run as HTTP server for remote access (FastMCP Cloud)
         import os
         port = int(os.getenv("PORT", "8000"))
 

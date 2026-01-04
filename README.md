@@ -79,9 +79,9 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
   - And more!
 
 The server exposes three MCP tools:
-1. **`execute_sql`** - Run read-only SELECT queries (10s timeout, 1,000 row limit)
-2. **`get_schema`** - Inspect available tables, columns, and sample data
-3. **`get_example_queries`** - Get curated SQL templates for common analyses
+1. **`search_credit_unions`** - Search and analyze credit union data (10s timeout, 1,000 row limit)
+2. **`explore_available_data`** - See what data tables and fields are available
+3. **`get_sample_searches`** - Get example searches for common analyses
 
 ---
 
