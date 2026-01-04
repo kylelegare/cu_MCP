@@ -489,8 +489,8 @@ def _table_type_to_string(table_type: str) -> str:
 # Tool implementations
 # ---------------------------------------------------------------------------
 @mcp.tool()
-def execute_sql(query: str) -> Dict[str, Any]:
-    """Execute a read-only SELECT query against credit union data.
+def search_credit_unions(query: str) -> Dict[str, Any]:
+    """Search and analyze credit union data using SQL queries.
 
     Safety: Only SELECT queries allowed. 10-second timeout, 1000-row limit.
     Returns: JSON with 'data' array, 'row_count', and optional 'warning'.
@@ -553,12 +553,12 @@ def is_safe_query(query: str) -> Tuple[bool, str]:
 
 
 @mcp.tool()
-def get_schema(table_name: Optional[str] = None) -> Dict[str, Any]:
-    """Get database schema information.
+def explore_available_data(table_name: Optional[str] = None) -> Dict[str, Any]:
+    """Explore what credit union data is available.
 
-    Without table_name: Returns list of all tables/views with descriptions.
-    With table_name: Returns columns, data types, row count, and 5 sample rows.
-    Recommendation: Start with cu_with_ratios view for most queries.
+    Without table_name: Returns list of all data tables with descriptions.
+    With table_name: Returns available fields, data types, row count, and 5 sample rows.
+    Recommendation: Start with cu_with_ratios for most queries.
     """
 
     with _get_connection() as conn:
@@ -641,8 +641,8 @@ def get_schema(table_name: Optional[str] = None) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def get_example_queries(category: Optional[str] = None) -> Dict[str, Any]:
-    """Get curated SQL examples for common analysis patterns.
+def get_sample_searches(category: Optional[str] = None) -> Dict[str, Any]:
+    """Get sample searches showing common ways to analyze credit union data.
 
     Categories: search, comparison, ranking, trends, financial_analysis
     Without category: Returns all examples across categories.
