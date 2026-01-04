@@ -12,10 +12,10 @@ import pandas as pd
 
 try:  # FastMCP 2.x is a standalone package
     from fastmcp import FastMCP
-    from mcp.types import Icon
+    # Icon import for future use (requires FastMCP 2.13.0+)
+    # from mcp.types import Icon
 except ImportError:  # pragma: no cover - helpful shim so module can be imported without FastMCP
     FastMCP = None  # type: ignore[assignment]
-    Icon = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
 # Constants & metadata
@@ -418,20 +418,10 @@ class _MCPStub:
         )
 
 
-mcp = (
-    FastMCP(
-        "Credit Union Analytics",
-        icons=[
-            Icon(
-                src="https://raw.githubusercontent.com/kylelegare/cu_MCP/main/icon.png",
-                mimeType="image/png",
-                sizes=["128x128"],
-            )
-        ],
-    )
-    if FastMCP and Icon
-    else _MCPStub()
-)
+# Note: Icons require FastMCP 2.13.0+. Once FastMCP Cloud updates, uncomment:
+# icons=[Icon(src="https://raw.githubusercontent.com/kylelegare/cu_MCP/main/icon.png",
+#             mimeType="image/png", sizes=["128x128"])]
+mcp = FastMCP("Credit Union Analytics") if FastMCP else _MCPStub()
 
 
 # ---------------------------------------------------------------------------
