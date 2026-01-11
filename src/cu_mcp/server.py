@@ -109,6 +109,15 @@ def search_credit_unions(query: str, min_assets: int = DEFAULT_MIN_ASSETS) -> Di
 
     Note: efficiency_ratio = operating expenses / revenue (lower is better, typical 50-90%).
 
+    For custom calculations beyond pre-calculated ratios:
+    - Query acctdesc to find account codes: SELECT account, acctname, tablename FROM acctdesc WHERE acctname LIKE '%term%'
+    - Raw data tables: foicu (CU identity), fs220/fs220a-r (financial schedules)
+    - Common codes: acct_010 (assets), acct_018 (net worth), acct_025 (net income), acct_030 (total loans),
+      acct_060 (shares/deposits), acct_550 (net charge-offs), acct_570 (operating expenses)
+
+    NCUA terminology: deposits=shares, checking=share drafts, savings=regular shares,
+    charge-offs=net charge-offs, loans=loans & leases.
+
     Args:
         query: SQL SELECT query against cu_with_ratios or other tables.
         min_assets: Minimum asset threshold in dollars. Default $25M filters out small CUs.
