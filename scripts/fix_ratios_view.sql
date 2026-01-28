@@ -73,19 +73,15 @@ SELECT
         / NULLIF(s.acct_010, 0) AS net_worth_ratio,
 
     -- FIXED: Delinquency Ratio - NCUA uses 60+ days (2+ months)
-    -- Old: (acct_022b + acct_023b) = only 6+ months
-    -- New: (acct_021b + acct_022b + acct_023b) = 60+ days (2+ months)
-    -- acct_021b = 2 to <6 months delinquent
-    -- acct_022b = 6 to <12 months delinquent
-    -- acct_023b = 12+ months delinquent
-    ((COALESCE(s.acct_021b, 0) + COALESCE(s.acct_022b, 0) + COALESCE(s.acct_023b, 0)) * 100.0)
-        / NULLIF(s.acct_025b, 0) AS delinquency_ratio,
+    -- Old: (acct_022b + acct_023b) = only 6+ months, missing many loan types
+    -- New: acct_041b = NCUA's official "Total Amount of Delinquent Loans & Leases (2+ months)"
+    -- acct_041b includes all delinquent loan types (leases, indirect, participation, MBL, TDR, etc.)
+    (COALESCE(s.acct_041b, 0) * 100.0) / NULLIF(s.acct_025b, 0) AS delinquency_ratio,
 
-    -- FIXED: Coverage Ratio - Uses Allowance for Loan Losses (acct_719) over 60+ day delinquent loans
+    -- FIXED: Coverage Ratio - Uses Allowance for Loan Losses (acct_719) over total delinquent loans
     -- Old: acct_300 (Provision - income statement expense) / (6+ month delinquent)
-    -- New: acct_719 (Allowance - balance sheet) / (60+ day delinquent loans)
-    (s.acct_719 * 100.0)
-        / NULLIF((COALESCE(s.acct_021b, 0) + COALESCE(s.acct_022b, 0) + COALESCE(s.acct_023b, 0)), 0) AS coverage_ratio,
+    -- New: acct_719 (Allowance - balance sheet) / acct_041b (total delinquent loans 2+ months)
+    (s.acct_719 * 100.0) / NULLIF(s.acct_041b, 0) AS coverage_ratio,
 
     -- Members per Employee (unchanged)
     (s.acct_083 / NULLIF((COALESCE(a.acct_564a, 0) + COALESCE(a.acct_564b, 0)), 0)) AS members_per_employee,
