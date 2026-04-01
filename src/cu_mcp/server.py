@@ -96,7 +96,7 @@ def _serialize_dataframe(frame: pd.DataFrame) -> List[Dict[str, Any]]:
 def search_credit_unions(query: str, min_assets: int = DEFAULT_MIN_ASSETS) -> Dict[str, Any]:
     """Query NCUA credit union call report data using SQL.
 
-    Data: ~3,000 US credit unions (filtered to assets >= $25M by default), 11 quarters (Q1 2023 - Q3 2025).
+    Data: ~3,000 US credit unions (filtered to assets >= $25M by default), 12 quarters (Q1 2023 - Q4 2025).
 
     Main view: cu_with_ratios
     Key columns: cu_number, cu_name, city, state, assets, member_count, cycle_date

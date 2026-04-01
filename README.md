@@ -2,7 +2,7 @@
 
 Query NCUA credit union data using natural language through Claude! This **Model Context Protocol (MCP)** server is **live and ready to use** - just add the URL to your AI assistant and start asking questions. No installation required.
 
-🚀 **Live Server:** https://callreportmcp.fastmcp.app/mcp
+Live Server: https://callreportmcp.fastmcp.app/mcp
 
 ---
 
@@ -27,7 +27,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### Claude.ai (Web):
 1. Go to your conversation on [claude.ai](https://claude.ai)
-2. Click the **connector icon** (🔌) in the message input area
+2. Click the **connector icon** in the message input area
 3. Click **"Add connector"**
 4. Enter the URL: `https://callreportmcp.fastmcp.app/mcp`
 5. Name it: `Credit Union Analytics`
@@ -70,23 +70,22 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## What's in the Data?
 
-- **11 quarters** of NCUA call report data (Q1 2023 through Q3 2025)
-- **~4,600 credit unions** per quarter (~50k rows total)
+- **12 quarters** of NCUA call report data (Q1 2023 through Q4 2025)
+- **~4,400 credit unions** per quarter (~55k rows total)
 - **15+ pre-calculated financial ratios:**
   - ROA, efficiency ratio, loan-to-share ratio, net worth ratio
   - YOY growth for assets/loans/shares/members
   - Members per employee, indirect lending ratio, average member relationship
+  - Net interest margin, delinquency ratio, coverage ratio
   - And more!
 
-The server exposes three MCP tools:
-1. **`search_credit_unions`** - Search and analyze credit union data (10s timeout, 1,000 row limit)
-2. **`explore_available_data`** - See what data tables and fields are available
-3. **`get_sample_searches`** - Get example searches for common analyses
+The server exposes one tool:
+- **`search_credit_unions`** - Query credit union data with SQL (10s timeout, 1,000 row limit, $25M asset floor by default)
+
+For deeper exploration, the tool also supports querying raw NCUA tables (`foicu`, `fs220`, `fs220a`-`fs220r`) and an `acctdesc` reference table for account code lookups.
 
 ---
 
 ## License & Data Use
 
 All credit union data originates from publicly available NCUA call reports. Please cite NCUA when publishing insights.
-
-**Happy analyzing!** 📊

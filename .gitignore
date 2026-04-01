@@ -33,6 +33,9 @@ build/
 *.backup
 *.bak
 
+# Source data zip files
+*.zip
+
 # Distribution helper files (not for recipients)
 # These files help package the project but aren't needed by users
 DISTRIBUTION_CHECKLIST.md

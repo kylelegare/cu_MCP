@@ -6,31 +6,38 @@ Raw call report schedules (fs220*, foicu) expose hundreds of `acct_XXX` columns.
 | Account | Description | Notes |
 | --- | --- | --- |
 | `acct_010` | Total assets | Matches `assets` in the ratio view |
-| `acct_018` | Net worth | Use for custom capital ratios |
-| `acct_025` | Net income (YTD) | Annualized when computing ROA |
-| `acct_030` | Total loans & leases | Equivalent to `loan_amount` |
-| `acct_060` | Total shares/deposits | Equivalent to `total_shares` |
-| `acct_142` | Total members | Equivalent to `member_count` |
-| `acct_197` | Delinquent loans | Use with `acct_030` for delinquency ratio |
-| `acct_440` | Allowance for loan losses | Use with `acct_197` for coverage ratio |
-| `acct_570` | Operating expenses | Base for efficiency ratio |
+| `acct_018` | Total shares and deposits | Matches `total_shares` in the ratio view |
+| `acct_025a` | Total number of loans and leases | Matches `loan_count` in the ratio view |
+| `acct_025b` | Total amount of loans and leases | Matches `loan_amount` in the ratio view |
+| `acct_041b` | Total delinquent loans (2+ months) | Used in `delinquency_ratio` |
+| `acct_083` | Number of current members | Matches `member_count` in the ratio view |
+| `acct_115` | Total interest income | Used in `net_interest_margin` and `efficiency_ratio` |
+| `acct_117` | Total non-interest income | Used in `efficiency_ratio` |
+| `acct_350` | Total interest expense | Used in `net_interest_margin` |
+| `acct_550` | Total charge-offs YTD | Loan losses |
+| `acct_564a` | Full-time employees | Combined with `acct_564b` for `members_per_employee` |
+| `acct_564b` | Part-time employees | Combined with `acct_564a` for `members_per_employee` |
+| `acct_602` | Net income | Used in `roa` (annualized) |
+| `acct_618a` | Total indirect loans outstanding | Used in `indirect_lending_ratio` |
+| `acct_671` | Total non-interest expense | Operating expenses; used in `efficiency_ratio` and `operating_expense_ratio` |
+| `acct_719` | Allowance for loan & lease losses | Used in `coverage_ratio` |
+| `acct_931` | Regular reserves | Part of net worth calculation |
+| `acct_940` | Undivided earnings | Part of net worth calculation |
+| `acct_658` | Other reserves | Part of net worth calculation |
 
 ## Helpful SQL snippets
 ```sql
 -- Look up the friendly name for an account column
-SELECT account, description
-FROM acctdesc
-WHERE account IN ('acct_010', 'acct_570');
+SELECT account, acctname FROM acctdesc WHERE LOWER(account) = 'acct_010';
+
+-- Search for accounts by keyword
+SELECT account, acctname, tablename FROM acctdesc WHERE acctname LIKE '%delinq%';
 
 -- Join descriptions onto an fs220 query
 SELECT f.cu_number,
        f.cycle_date,
-       a.description,
-       f.acct_570 AS amount
+       f.acct_671 AS operating_expenses
 FROM fs220 AS f
-JOIN acctdesc AS a
-  ON a.account = 'acct_570'
-WHERE f.cycle_date = (SELECT MAX(cycle_date) FROM fs220);
+WHERE f.cycle_date = (SELECT MAX(cycle_date) FROM fs220)
+LIMIT 10;
 ```
-
-Use `get_schema('acctdesc')` for the definitive list of account codes and their meanings.

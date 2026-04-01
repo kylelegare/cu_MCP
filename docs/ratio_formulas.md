@@ -4,22 +4,23 @@ All ratios are pre-computed in the `cu_with_ratios` view so downstream tools do 
 
 | Column | Definition | Formula Notes |
 | --- | --- | --- |
-| `roa` | Return on Assets (%) | `(net_income_quarterly * 4) / assets * 100` (annualized) |
-| `efficiency_ratio` | Operating expenses as % of revenue | `operating_expenses_quarterly / (net_interest_income + non_interest_income) * 100`; lower is better; measures cost efficiency |
-| `operating_expense_ratio` | Operating expenses as % of assets | `(operating_expenses_quarterly * 4) / assets * 100` (annualized); different from efficiency ratio |
-| `loan_to_share_ratio` | Lending aggressiveness | `loan_amount / total_shares * 100` |
-| `net_interest_margin` | Net interest spread | `((interest_income - interest_expense) / assets) * 100`; key profitability metric |
-| `net_worth_ratio` | Capital adequacy | `(net_worth / assets) * 100` |
-| `delinquency_ratio` | Delinquent loans as % of total | `delinquent_loans / loan_amount * 100` |
-| `coverage_ratio` | Allowance coverage of delinquencies | `allowance_for_loan_losses / delinquent_loans * 100` |
+| `roa` | Return on Assets (%) | `(net_income * 4) / assets * 100` (annualized); uses `acct_602` or falls back to `acct_661a` |
+| `efficiency_ratio` | Operating expenses as % of revenue | `acct_671 / (net_interest_income + non_interest_income) * 100`; lower is better |
+| `operating_expense_ratio` | Operating expenses as % of assets | `(acct_671 * 4) / assets * 100` (annualized); different from efficiency ratio |
+| `loan_to_share_ratio` | Lending aggressiveness | `acct_025b / acct_018 * 100` |
+| `net_interest_margin` | Net interest spread | `(acct_115 - acct_350) / assets * 100` |
+| `net_worth_ratio` | Capital adequacy | `(acct_931 + acct_940 + acct_658) / assets * 100` |
+| `delinquency_ratio` | Delinquent loans as % of total | `acct_041b / acct_025b * 100` |
+| `coverage_ratio` | Allowance coverage of delinquencies | `acct_719 / acct_041b * 100` |
+| `non_interest_income_ratio` | Non-interest income as % of assets | `(acct_117 * 4) / assets * 100` (annualized) |
 | `member_growth_yoy` | Trailing 4-quarter member growth | `(member_count - LAG(member_count, 4)) / LAG(member_count, 4) * 100` |
 | `loan_growth_yoy` | Trailing 4-quarter loan growth | `(loan_amount - LAG(loan_amount, 4)) / LAG(loan_amount, 4) * 100` |
 | `share_growth_yoy` | Trailing 4-quarter share growth | `(total_shares - LAG(total_shares, 4)) / LAG(total_shares, 4) * 100` |
 | `asset_growth_yoy` | Trailing 4-quarter asset growth | `(assets - LAG(assets, 4)) / LAG(assets, 4) * 100` |
 | `avg_member_relationship` | Avg. assets per member | `assets / NULLIF(member_count, 0)` |
-| `loans_per_member` | Loan balance per member | `loan_amount / NULLIF(member_count, 0)` |
-| `members_per_employee` | Productivity proxy | `member_count / NULLIF(total_employees, 0)` |
-| `indirect_lending_ratio` | Share of loans sourced indirectly | `indirect_loan_balance / loan_amount * 100` |
+| `loans_per_member` | Loan count per member | `acct_025a / NULLIF(member_count, 0)` |
+| `members_per_employee` | Productivity proxy | `member_count / NULLIF(full_time + part_time, 0)` |
+| `indirect_lending_ratio` | Share of loans sourced indirectly | `acct_618a / acct_025b * 100` |
 
 ## Important Notes
 
@@ -32,7 +33,9 @@ All ratios are pre-computed in the `cu_with_ratios` view so downstream tools do 
 - Typical range for credit unions: 2-4%
 - Key indicator of lending profitability
 
+**YoY Growth Ratios:**
+- Require at least 4 prior quarters of data for a given credit union
+- Will be NULL for the first year of data or for newly chartered CUs
+
 **Data Quality Note:**
 - Some large credit unions show $0 net income (and therefore 0% ROA) in recent quarters due to data reporting variations. This is a source data limitation, not a calculation error.
-
-Additional derived fields are documented inline in `src/cu_mcp/server.py` and surfaced through `get_schema()`.
