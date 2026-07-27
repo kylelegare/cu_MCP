@@ -1,0 +1,23 @@
+{
+  "2025-09": {
+    "checked_at": "2026-07-27T01:46:18+00:00",
+    "fingerprint": "last_modified:Fri, 05 Dec 2025 16:03:38 GMT",
+    "last_modified": "Fri, 05 Dec 2025 16:03:38 GMT",
+    "source": "https://www.ncua.gov/files/publications/analysis/call-report-data-2025-09.zip"
+  },
+  "2025-12": {
+    "checked_at": "2026-07-27T01:46:17+00:00",
+    "fingerprint": "last_modified:Fri, 06 Mar 2026 19:00:10 GMT",
+    "last_modified": "Fri, 06 Mar 2026 19:00:10 GMT",
+    "source": "https://www.ncua.gov/files/publications/analysis/call-report-data-2025-12.zip"
+  },
+  "2026-03": {
+    "bytes": 8103326,
+    "checked_at": "2026-07-27T01:48:20+00:00",
+    "fingerprint": "last_modified:Tue, 09 Jun 2026 15:19:22 GMT",
+    "ingested_at": "2026-07-27T01:48:20+00:00",
+    "last_modified": "Tue, 09 Jun 2026 15:19:22 GMT",
+    "sha256": "6d7fdf1e7eaf9078b33a498be966163e07e368949dbbdf3736527842c51f7567",
+    "source": "https://www.ncua.gov/files/publications/analysis/call-report-data-2026-03.zip"
+  }
+}

@@ -70,14 +70,16 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## What's in the Data?
 
-- **12 quarters** of NCUA call report data (Q1 2023 through Q4 2025)
-- **~4,400 credit unions** per quarter (~55k rows total)
+- **13 quarters** of NCUA call report data (Q1 2023 through Q1 2026)
+- **~4,300 credit unions** per quarter (~60k rows total)
 - **15+ pre-calculated financial ratios:**
   - ROA, efficiency ratio, loan-to-share ratio, net worth ratio
   - YOY growth for assets/loans/shares/members
   - Members per employee, indirect lending ratio, average member relationship
   - Net interest margin, delinquency ratio, coverage ratio
   - And more!
+
+Income-statement-based ratios are annualized from the NCUA's year-to-date call report fields, so Q2/Q3/Q4 values stay comparable to Q1 and year-end figures.
 
 The server exposes one tool:
 - **`search_credit_unions`** - Query credit union data with SQL (10s timeout, 1,000 row limit, $25M asset floor by default)
@@ -89,3 +91,39 @@ For deeper exploration, the tool also supports querying raw NCUA tables (`foicu`
 ## License & Data Use
 
 All credit union data originates from publicly available NCUA call reports. Please cite NCUA when publishing insights.
+
+## Maintenance
+
+NCUA publishes a new call report cycle roughly 10 weeks after each quarter end, at a
+predictable URL: `https://www.ncua.gov/files/publications/analysis/call-report-data-YYYY-MM.zip`.
+There is no notification feed, and revised cycles are re-published silently at the same
+URL — so [`scripts/refresh_data.py`](scripts/refresh_data.py) polls instead, recording each
+cycle's upstream `Last-Modified` in [`data/source_manifest.json`](data/source_manifest.json).
+
+```bash
+# Is anything new or revised upstream? (exit 1 when work is pending)
+python scripts/refresh_data.py check
+
+# Download and load whatever check found
+python scripts/refresh_data.py sync
+
+# Or load a zip you already downloaded
+python scripts/refresh_data.py ingest --zip call-report-data-2026-03.zip
+```
+
+Ingest backs up the database first, loads every quarterly table in one transaction,
+adds any account columns NCUA introduced that quarter, refuses to insert a cycle that
+would silently drop values in a type conversion, replaces `acctdesc`, reapplies
+[`scripts/rebuild_cu_with_ratios.sql`](scripts/rebuild_cu_with_ratios.sql), and prints
+recent-quarter medians so an obviously bad load is visible before you commit.
+
+After a successful run, commit `data/cu_data.duckdb` (Git LFS) and
+`data/source_manifest.json` and redeploy.
+
+The refresh needs no dependencies beyond `duckdb` and the standard library, so it runs
+anywhere — including on a schedule. To have it nag you the moment a cycle lands:
+
+```cron
+# Check every Monday at 9am; mail the output only when something is pending
+0 9 * * 1 cd /path/to/cu_MCP && .venv/bin/python scripts/refresh_data.py check
+```
