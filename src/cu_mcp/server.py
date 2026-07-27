@@ -26,6 +26,19 @@ QUERY_TIMEOUT_SECONDS = 10
 DEFAULT_MIN_ASSETS = 25_000_000
 _FORBIDDEN_KEYWORDS = ["DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE", "ATTACH", "DETACH"]
 _FORBIDDEN_RE = re.compile(r"\b(" + "|".join(_FORBIDDEN_KEYWORDS) + r")\b")
+_STRING_LITERAL_RE = re.compile(r"'(?:''|[^'])*'")
+_FORBIDDEN_PATTERNS = [
+    (re.compile(r";\s*\S"), "Only a single SQL statement is allowed"),
+    (re.compile(r"\bREAD_[A-Z_]*\s*\("), "External file-reading functions are not allowed"),
+    (re.compile(r"\bWRITE_[A-Z_]*\s*\("), "External file-writing functions are not allowed"),
+    (re.compile(r"\bCOPY\b"), "COPY statements are not allowed"),
+    (re.compile(r"\bPRAGMA\b"), "PRAGMA statements are not allowed"),
+    (re.compile(r"\bCALL\b"), "CALL statements are not allowed"),
+    (re.compile(r"\bINSTALL\b"), "INSTALL statements are not allowed"),
+    (re.compile(r"\bLOAD\b"), "LOAD statements are not allowed"),
+    (re.compile(r"\bEXPORT\b"), "EXPORT statements are not allowed"),
+    (re.compile(r"\bIMPORT\b"), "IMPORT statements are not allowed"),
+]
 
 class _MCPStub:
     """Fallback shim so the module can be imported without FastMCP installed."""
@@ -207,13 +220,22 @@ def search_credit_unions(query: str, min_assets: int = DEFAULT_MIN_ASSETS) -> Di
 def is_safe_query(query: str) -> Tuple[bool, str]:
     """Validate the query only contains safe SELECT statements."""
 
-    query_upper = query.strip().upper()
+    normalized = query.strip()
+    if normalized.endswith(";"):
+        normalized = normalized[:-1].rstrip()
+
+    sanitized = _STRING_LITERAL_RE.sub("''", normalized)
+    query_upper = sanitized.upper()
     if not (query_upper.startswith("SELECT") or query_upper.startswith("WITH")):
         return False, "Only SELECT queries are allowed"
 
     match = _FORBIDDEN_RE.search(query_upper)
     if match:
         return False, f"Query contains forbidden keyword: {match.group(1)}"
+
+    for pattern, message in _FORBIDDEN_PATTERNS:
+        if pattern.search(query_upper):
+            return False, message
 
     return True, ""
 

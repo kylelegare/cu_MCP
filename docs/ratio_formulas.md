@@ -4,15 +4,15 @@ All ratios are pre-computed in the `cu_with_ratios` view so downstream tools do 
 
 | Column | Definition | Formula Notes |
 | --- | --- | --- |
-| `roa` | Return on Assets (%) | `(net_income * 4) / assets * 100` (annualized); uses `acct_602` or falls back to `acct_661a` |
-| `efficiency_ratio` | Operating expenses as % of revenue | `acct_671 / (net_interest_income + non_interest_income) * 100`; lower is better |
-| `operating_expense_ratio` | Operating expenses as % of assets | `(acct_671 * 4) / assets * 100` (annualized); different from efficiency ratio |
+| `roa` | Return on Assets (%) | `(reported_net_income_ytd * annualization_factor) / assets * 100`; `annualization_factor = 4 / quarter_number`, using `acct_602` or falling back to `acct_661a` |
+| `efficiency_ratio` | Operating expenses as % of revenue | `acct_671 / (net_interest_income_ytd + non_interest_income_ytd) * 100`; lower is better |
+| `operating_expense_ratio` | Operating expenses as % of assets | `(acct_671 * annualization_factor) / assets * 100`; annualized from YTD values |
 | `loan_to_share_ratio` | Lending aggressiveness | `acct_025b / acct_018 * 100` |
-| `net_interest_margin` | Net interest spread | `(acct_115 - acct_350) / assets * 100` |
+| `net_interest_margin` | Net interest spread | `((acct_115 - acct_350) * annualization_factor) / assets * 100` |
 | `net_worth_ratio` | Capital adequacy | `(acct_931 + acct_940 + acct_658) / assets * 100` |
 | `delinquency_ratio` | Delinquent loans as % of total | `acct_041b / acct_025b * 100` |
 | `coverage_ratio` | Allowance coverage of delinquencies | `acct_719 / acct_041b * 100` |
-| `non_interest_income_ratio` | Non-interest income as % of assets | `(acct_117 * 4) / assets * 100` (annualized) |
+| `non_interest_income_ratio` | Non-interest income as % of assets | `(acct_117 * annualization_factor) / assets * 100` |
 | `member_growth_yoy` | Trailing 4-quarter member growth | `(member_count - LAG(member_count, 4)) / LAG(member_count, 4) * 100` |
 | `loan_growth_yoy` | Trailing 4-quarter loan growth | `(loan_amount - LAG(loan_amount, 4)) / LAG(loan_amount, 4) * 100` |
 | `share_growth_yoy` | Trailing 4-quarter share growth | `(total_shares - LAG(total_shares, 4)) / LAG(total_shares, 4) * 100` |
@@ -28,14 +28,14 @@ All ratios are pre-computed in the `cu_with_ratios` view so downstream tools do 
 - **Efficiency Ratio** measures operating expenses relative to revenue (net interest income + non-interest income). Lower is better. Typical range: 50-90%.
 - **Operating Expense Ratio** measures operating expenses relative to total assets. This is a different metric that shows expense burden on the balance sheet.
 
-**Net Interest Margin:**
-- Calculated as (Interest Income - Interest Expense) / Assets
-- Typical range for credit unions: 2-4%
-- Key indicator of lending profitability
+**Annualization of Income-Statement Ratios:**
+- NCUA call report income-statement fields are reported year-to-date for Q2-Q4.
+- The view normalizes them with `annualization_factor = 4 / quarter_number`.
+- That means Q1 uses `4.0`, Q2 uses `2.0`, Q3 uses `1.333...`, and Q4 uses `1.0`.
 
 **YoY Growth Ratios:**
 - Require at least 4 prior quarters of data for a given credit union
 - Will be NULL for the first year of data or for newly chartered CUs
 
 **Data Quality Note:**
-- Some large credit unions show $0 net income (and therefore 0% ROA) in recent quarters due to data reporting variations. This is a source data limitation, not a calculation error.
+- Some institutions report `acct_602 = 0` while `acct_661a` contains the income value used for ROA. The view falls back to `acct_661a` in those cases.
