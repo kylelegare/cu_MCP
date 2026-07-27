@@ -1,14 +1,36 @@
 name: Refresh NCUA data
 
-# NCUA posts each quarterly cycle roughly 10 weeks after quarter end, with no
-# notification feed, and silently re-publishes revised cycles at the same URL.
-# So we poll. The check job deliberately skips Git LFS: it only needs
-# source_manifest.json, and materializing the 132MB database every week would
-# burn most of the LFS bandwidth allowance discovering that nothing changed.
+# NCUA publishes each cycle once a quarter with no notification feed, and
+# silently re-publishes revised cycles at the same URL. So we poll — but only
+# when data is plausibly due, rather than year-round.
+#
+# The system performance release lands in the first week of the third month
+# after quarter close (~9-10 weeks). Observed, from data/source_manifest.json:
+#
+#   quarter close    zip Last-Modified    press release
+#   2025-09-30       Fri 05 Dec 2025      Dec 5, 2025
+#   2025-12-31       Fri 06 Mar 2026      Mar 6, 2026
+#   2026-03-31       Tue 09 Jun 2026      Jun 9, 2026
+#
+# Last-Modified matched the announcement date every time. But third parties
+# have published call-report analysis ~2 weeks ahead of the announcement, and
+# Last-Modified only records the *most recent* write — an early post that was
+# re-uploaded on announcement day would look exactly like this. So the window
+# opens mid-month-two to catch an early drop, and runs through mid-month-three.
+#
+# The check job deliberately skips Git LFS: it only needs
+# source_manifest.json, and materializing the 132MB database on every run
+# would burn most of the LFS bandwidth allowance to learn nothing changed.
 
 on:
   schedule:
-    - cron: "0 13 * * 1" # Mondays, 13:00 UTC
+    # Hunting window. Months 2 and 3 after each quarter close:
+    # Feb/May/Aug/Nov then Mar/Jun/Sep/Dec.
+    - cron: "0 13 14-28 2,5,8,11 *" # daily, mid-to-late month two
+    - cron: "0 13 1-20 3,6,9,12 *" # daily through the announcement window
+    # Backstop: catches revisions NCUA makes outside the window, like the
+    # "Revised" 2025-03 cycle currently listed on their downloads page.
+    - cron: "0 13 1 * *" # first of every month
   workflow_dispatch:
     inputs:
       force:

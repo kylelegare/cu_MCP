@@ -122,9 +122,20 @@ After a successful run, commit `data/cu_data.duckdb` (Git LFS) and
 
 ### Automated refresh
 
-[`.github/workflows/refresh-data.yml`](.github/workflows/refresh-data.yml) runs the
-above every Monday and opens a pull request when NCUA publishes or revises a cycle —
-so a refresh is a review-and-merge, not a chore you have to remember.
+[`.github/workflows/refresh-data.yml`](.github/workflows/refresh-data.yml) polls NCUA
+and opens a pull request when a cycle is published or revised — so a refresh is a
+review-and-merge, not a chore you have to remember.
+
+Data lands once a quarter, so the workflow doesn't poll year-round. NCUA's system
+performance release comes in the first week of the third month after quarter close
+(~9-10 weeks), and the raw zips may post ahead of the announcement. So it checks
+**daily from mid-month-two through the announcement window** — Feb/May/Aug/Nov 14-28,
+then Mar/Jun/Sep/Dec 1-20 — plus a first-of-the-month backstop that catches revisions
+made outside the window. That's ~148 runs a year, each a single HEAD request, versus
+a couple of days' delay if it only ran weekly.
+
+For Q2 2026 (June 30 close) that means daily checks from August 14, with the data
+expected mid-to-late August and the announcement in the first week of September.
 
 The check runs *without* Git LFS on purpose. It only needs `source_manifest.json`, and
 materializing the 132MB database weekly would spend most of a free-tier LFS bandwidth
