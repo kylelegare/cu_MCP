@@ -1,0 +1,112 @@
+name: Refresh NCUA data
+
+# NCUA posts each quarterly cycle roughly 10 weeks after quarter end, with no
+# notification feed, and silently re-publishes revised cycles at the same URL.
+# So we poll. The check job deliberately skips Git LFS: it only needs
+# source_manifest.json, and materializing the 132MB database every week would
+# burn most of the LFS bandwidth allowance discovering that nothing changed.
+
+on:
+  schedule:
+    - cron: "0 13 * * 1" # Mondays, 13:00 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Re-ingest even if nothing looks changed"
+        type: boolean
+        default: false
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      pending: ${{ steps.probe.outputs.pending }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false # pointer stub is enough; see note above
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install "duckdb>=1.0.0"
+
+      - id: probe
+        run: |
+          # exit 0 = current, 1 = cycles pending, 2 = the check itself failed
+          set +e
+          python scripts/refresh_data.py check --json > check.json
+          status=$?
+          set -e
+          if [ "$status" -gt 1 ]; then
+            cat check.json
+            echo "::error::NCUA check failed"
+            exit "$status"
+          fi
+
+          [ "$status" -eq 1 ] && pending=true || pending=false
+          echo "pending=$pending" >> "$GITHUB_OUTPUT"
+          {
+            echo "## NCUA check — pending: $pending"
+            python -c "import json;print('\n'.join('- '+d for d in json.load(open('check.json'))['detail']))"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  refresh:
+    needs: check
+    if: needs.check.outputs.pending == 'true' || inputs.force
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true # now we genuinely need the database
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install "duckdb>=1.0.0"
+
+      - name: Sync new and revised cycles
+        run: |
+          python scripts/refresh_data.py sync --no-backup \
+            ${{ inputs.force && '--force' || '' }} 2>&1 | tee sync.log
+
+      - name: Open a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- data/; then
+            echo "No data changes produced; nothing to open." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          BRANCH="data/refresh-$(date -u +%Y%m%d-%H%M)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add data/
+          git commit -m "Refresh NCUA call report data"
+          git push origin "$BRANCH"
+
+          {
+            echo "Automated refresh from <https://www.ncua.gov/analysis/credit-union-corporate-call-report-data/quarterly-data>."
+            echo
+            echo "Review the medians below against the prior quarters before merging —"
+            echo "a wildly different value usually means NCUA changed a field, not that"
+            echo "the industry moved."
+            echo
+            echo '```'
+            cat sync.log
+            echo '```'
+          } > body.md
+
+          gh pr create --title "Refresh NCUA call report data" --body-file body.md \
+            --base "${{ github.ref_name }}" --head "$BRANCH"

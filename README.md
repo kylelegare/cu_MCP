@@ -120,10 +120,23 @@ recent-quarter medians so an obviously bad load is visible before you commit.
 After a successful run, commit `data/cu_data.duckdb` (Git LFS) and
 `data/source_manifest.json` and redeploy.
 
-The refresh needs no dependencies beyond `duckdb` and the standard library, so it runs
-anywhere — including on a schedule. To have it nag you the moment a cycle lands:
+### Automated refresh
+
+[`.github/workflows/refresh-data.yml`](.github/workflows/refresh-data.yml) runs the
+above every Monday and opens a pull request when NCUA publishes or revises a cycle —
+so a refresh is a review-and-merge, not a chore you have to remember.
+
+The check runs *without* Git LFS on purpose. It only needs `source_manifest.json`, and
+materializing the 132MB database weekly would spend most of a free-tier LFS bandwidth
+allowance to learn that nothing changed. The full download happens only in the refresh
+job, roughly four times a year.
+
+`check` exits `0` when current, `1` when cycles are pending, and `2` if the check itself
+failed, so it drives a scheduler without log-scraping. `--json` emits a parseable summary
+on stdout with diagnostics on stderr. The whole pipeline depends on `duckdb` plus the
+standard library, so it also runs fine from plain cron:
 
 ```cron
-# Check every Monday at 9am; mail the output only when something is pending
+# Mail you only when something is actually pending
 0 9 * * 1 cd /path/to/cu_MCP && .venv/bin/python scripts/refresh_data.py check
 ```

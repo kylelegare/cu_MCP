@@ -39,6 +39,11 @@ VIEW_SQL_PATH = BASE_DIR / "scripts" / "rebuild_cu_with_ratios.sql"
 MANIFEST_PATH = BASE_DIR / "data" / "source_manifest.json"
 DOWNLOAD_DIR = BASE_DIR / "data" / "source_zips"
 
+# Distinct exit codes so a scheduled `check` can tell "work to do" from "it broke".
+EXIT_CURRENT = 0
+EXIT_PENDING = 1
+EXIT_ERROR = 2
+
 NCUA_URL_TEMPLATE = "https://www.ncua.gov/files/publications/analysis/call-report-data-{cycle}.zip"
 USER_AGENT = "cu-mcp-refresh/1.0 (+https://github.com/kylelegare/cu_MCP)"
 
@@ -61,6 +66,11 @@ DATE_FORMATS = ["%m/%d/%Y %I:%M:%S %p", "%m/%d/%Y %H:%M:%S", "%m/%d/%Y"]
 # ---------------------------------------------------------------------------
 # Cycle helpers
 # ---------------------------------------------------------------------------
+def note(message: str) -> None:
+    """Diagnostic aside. Goes to stderr so `check --json` keeps stdout parseable."""
+    print(message, file=sys.stderr)
+
+
 def cycle_to_date(cycle: str) -> _dt.date:
     """Turn a ``YYYY-MM`` cycle label into the quarter-end date."""
     year, month = (int(part) for part in cycle.split("-"))
@@ -143,13 +153,30 @@ def fingerprint(meta: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def db_cycles() -> List[str]:
-    """Cycle labels already loaded into the database."""
+def db_cycles() -> Optional[List[str]]:
+    """Cycle labels already loaded into the database.
+
+    Returns None when the database cannot be read — notably on a CI checkout
+    that skipped Git LFS, where the file on disk is a pointer stub. Callers
+    fall back to the manifest so a scheduled `check` costs no LFS bandwidth.
+    """
     if not DB_PATH.exists():
-        return []
-    with duckdb.connect(str(DB_PATH), read_only=True) as con:
-        rows = con.execute("SELECT DISTINCT cycle_date FROM foicu ORDER BY 1").fetchall()
+        return None
+    try:
+        with duckdb.connect(str(DB_PATH), read_only=True) as con:
+            rows = con.execute("SELECT DISTINCT cycle_date FROM foicu ORDER BY 1").fetchall()
+    except duckdb.Error:
+        return None
     return [date_to_cycle(row[0]) for row in rows]
+
+
+def loaded_cycles(manifest: Dict[str, Any]) -> List[str]:
+    """Cycles we already hold, preferring the database and falling back to the manifest."""
+    from_db = db_cycles()
+    if from_db is not None:
+        return from_db
+    note(f"  ({DB_PATH.name} unreadable — using {MANIFEST_PATH.name} to decide what is loaded)")
+    return [cycle for cycle, entry in manifest.items() if entry.get("in_database")]
 
 
 def download_cycle(cycle: str, destination: Optional[Path] = None) -> Path:
@@ -216,16 +243,18 @@ def coercion_failures(
 ) -> List[Tuple[str, int]]:
     """Columns where a non-empty source value cast to NULL — i.e. silent data loss."""
     present = set(present)
-    checks = [
-        f"SUM(CASE WHEN NULLIF(TRIM(\"{col}\"), '') IS NOT NULL "
-        f"AND ({cast_expression(col, dtype)}) IS NULL THEN 1 ELSE 0 END) AS \"{col}\""
-        for col, dtype in columns.items()
-        if col in present and dtype != "VARCHAR"
+    checked = [
+        col for col, dtype in columns.items() if col in present and dtype != "VARCHAR"
     ]
-    if not checks:
+    if not checked:
         return []
-    row = con.execute(f"SELECT {', '.join(checks)} FROM {staging}").fetchdf().iloc[0]
-    return [(col, int(count)) for col, count in row.items() if count]
+    checks = ", ".join(
+        f"SUM(CASE WHEN NULLIF(TRIM(\"{col}\"), '') IS NOT NULL "
+        f"AND ({cast_expression(col, columns[col])}) IS NULL THEN 1 ELSE 0 END)"
+        for col in checked
+    )
+    row = con.execute(f"SELECT {checks} FROM {staging}").fetchone()
+    return [(col, int(count)) for col, count in zip(checked, row) if count]
 
 
 # ---------------------------------------------------------------------------
@@ -444,13 +473,15 @@ def record_ingest(cycle: str, zip_path: Optional[Path], remote: Optional[Dict[st
         try:
             remote = probe_cycle(cycle)
         except urllib.error.URLError as exc:  # offline ingest of a local zip
-            print(f"  could not reach NCUA to record a revision baseline: {exc}")
+            note(f"  could not reach NCUA to record a revision baseline: {exc}")
     remote = remote or {}
     manifest = load_manifest()
+    # Every caller reaches here only for a cycle the database already holds.
     entry: Dict[str, Any] = {
         "source": remote.get("url", NCUA_URL_TEMPLATE.format(cycle=cycle)),
         "fingerprint": fingerprint(remote),
         "last_modified": remote.get("last_modified"),
+        "in_database": True,
         "checked_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
     }
     if zip_path is not None:
@@ -472,39 +503,47 @@ def cycle_status(cycle: str, remote: Dict[str, Any], loaded: Iterable[str], mani
     if cycle not in loaded:
         return "NEW — not in database", True
 
-    known = manifest.get(cycle)
+    known = manifest.get(cycle) or {}
     current = fingerprint(remote)
-    if not known or not known.get("fingerprint"):
+    if not known.get("fingerprint"):
         # Loaded before revision tracking started: adopt the current upstream
         # state as the baseline so a later revision stands out.
         record_ingest(cycle, None, remote)
         return "in database (baseline recorded)", False
+    if not known.get("in_database"):
+        record_ingest(cycle, None, remote)  # self-heal a manifest predating this flag
     if current and known["fingerprint"] != current:
         return f"REVISED — upstream changed {known.get('last_modified')} -> {remote.get('last_modified')}", True
     return f"up to date (published {remote.get('last_modified')})", False
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    loaded = db_cycles()
     manifest = load_manifest()
+    loaded = loaded_cycles(manifest)
     pending: List[str] = []
-    print(f"Checking the {args.lookback} most recent NCUA cycles against {DB_PATH.name}\n")
+    lines: List[str] = []
     for cycle in recent_cycles(args.lookback):
         remote = probe_cycle(cycle)
         if remote is None:
-            print(f"  {cycle}  not published yet")
+            lines.append(f"  {cycle}  not published yet")
             continue
         status, needs_ingest = cycle_status(cycle, remote, loaded, manifest)
         if needs_ingest:
             pending.append(cycle)
-        print(f"  {cycle}  {status}")
+        lines.append(f"  {cycle}  {status}")
 
+    if args.json:
+        print(json.dumps({"pending": pending, "detail": [line.strip() for line in lines]}))
+        return EXIT_PENDING if pending else EXIT_CURRENT
+
+    print(f"Checking the {args.lookback} most recent NCUA cycles against {DB_PATH.name}\n")
+    print("\n".join(lines))
     if pending:
         print(f"\n{len(pending)} cycle(s) need ingest: {', '.join(pending)}")
         print(f"Run: python scripts/{Path(__file__).name} sync")
     else:
         print("\nDatabase is current with NCUA.")
-    return 1 if pending else 0
+    return EXIT_PENDING if pending else EXIT_CURRENT
 
 
 def cmd_ingest(args: argparse.Namespace) -> int:
@@ -519,8 +558,8 @@ def cmd_ingest(args: argparse.Namespace) -> int:
 
 
 def cmd_sync(args: argparse.Namespace) -> int:
-    loaded = db_cycles()
     manifest = load_manifest()
+    loaded = loaded_cycles(manifest)
     cycles = args.cycles or list(reversed(recent_cycles(args.lookback)))
     ingested: List[str] = []
     for cycle in cycles:
@@ -556,6 +595,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     check = sub.add_parser("check", help="report which NCUA cycles are new or revised")
     check.add_argument("--lookback", type=int, default=4, help="how many recent cycles to probe")
+    check.add_argument("--json", action="store_true", help="emit a machine-readable summary")
     check.set_defaults(func=cmd_check)
 
     ingest = sub.add_parser("ingest", help="ingest a call report zip already on disk")
@@ -574,7 +614,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     sync.set_defaults(func=cmd_sync)
 
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except Exception as exc:  # keep exit 1 meaning "work pending", never "it broke"
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_ERROR
 
 
 if __name__ == "__main__":
