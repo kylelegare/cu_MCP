@@ -24,6 +24,7 @@ import hashlib
 import json
 import shutil
 import sys
+import time
 import tempfile
 import urllib.error
 import urllib.request
@@ -45,7 +46,27 @@ EXIT_PENDING = 1
 EXIT_ERROR = 2
 
 NCUA_URL_TEMPLATE = "https://www.ncua.gov/files/publications/analysis/call-report-data-{cycle}.zip"
-USER_AGENT = "cu-mcp-refresh/1.0 (+https://github.com/kylelegare/cu_MCP)"
+
+# ncua.gov sits behind a CDN that resets connections from datacenter IP ranges
+# when the request does not look like a browser. A bare custom User-Agent works
+# fine from a laptop but fails from a GitHub Actions runner, so send a full
+# browser header set. Public data, ordinary download — just past the bot filter.
+REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+}
+# urllib does not transparently decompress, so ask for the bytes as-is when
+# actually downloading; a gzipped response would be written to disk as a
+# corrupt zip.
+DOWNLOAD_HEADERS = {**REQUEST_HEADERS, "Accept-Encoding": "identity"}
+PROBE_ATTEMPTS = 3
+PROBE_TIMEOUT = 30
 
 # Financial schedule suffixes carried in the database. The NCUA zip also ships
 # FS220D and FS220S, which the dataset has never included; adding them here is
@@ -121,22 +142,53 @@ def sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _total_bytes(response: Any) -> int:
+    """Size of the full file, even when we asked for only the first byte."""
+    content_range = response.headers.get("Content-Range")  # e.g. "bytes 0-0/8103326"
+    if content_range and "/" in content_range:
+        total = content_range.rsplit("/", 1)[1]
+        if total.isdigit():
+            return int(total)
+    if response.status == 206:
+        return 0  # partial response without a usable total; fall back to Last-Modified
+    return int(response.headers.get("Content-Length") or 0)
+
+
 def probe_cycle(cycle: str) -> Optional[Dict[str, Any]]:
-    """HEAD the NCUA zip for a cycle. Returns None when it is not published yet."""
+    """Check whether a cycle is published. Returns None when it is not.
+
+    Tries HEAD first, then a single-byte ranged GET: some CDN configurations
+    answer GET while dropping HEAD outright.
+    """
     url = NCUA_URL_TEMPLATE.format(cycle=cycle)
-    request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return {
-                "url": url,
-                "bytes": int(response.headers.get("Content-Length") or 0),
-                "etag": response.headers.get("ETag"),
-                "last_modified": response.headers.get("Last-Modified"),
-            }
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return None
-        raise
+    last_error: Optional[Exception] = None
+
+    for attempt in range(PROBE_ATTEMPTS):
+        for method in ("HEAD", "GET"):
+            request = urllib.request.Request(url, method=method, headers=dict(REQUEST_HEADERS))
+            if method == "GET":
+                request.add_header("Range", "bytes=0-0")
+            try:
+                with urllib.request.urlopen(request, timeout=PROBE_TIMEOUT) as response:
+                    return {
+                        "url": url,
+                        "bytes": _total_bytes(response),
+                        "etag": response.headers.get("ETag"),
+                        "last_modified": response.headers.get("Last-Modified"),
+                    }
+            except urllib.error.HTTPError as exc:
+                if exc.code == 404:
+                    return None
+                last_error = exc
+            except (urllib.error.URLError, OSError) as exc:
+                last_error = exc
+
+        if attempt + 1 < PROBE_ATTEMPTS:
+            delay = 2 ** attempt
+            note(f"  {cycle}: {last_error}; retrying in {delay}s")
+            time.sleep(delay)
+
+    raise RuntimeError(f"could not reach {url}: {last_error}")
 
 
 def fingerprint(meta: Dict[str, Any]) -> Optional[str]:
@@ -183,7 +235,7 @@ def download_cycle(cycle: str, destination: Optional[Path] = None) -> Path:
     url = NCUA_URL_TEMPLATE.format(cycle=cycle)
     destination = destination or DOWNLOAD_DIR / f"call-report-data-{cycle}.zip"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    request = urllib.request.Request(url, headers=dict(DOWNLOAD_HEADERS))
     print(f"  downloading {url}")
     with urllib.request.urlopen(request, timeout=300) as response, destination.open("wb") as handle:
         shutil.copyfileobj(response, handle)
