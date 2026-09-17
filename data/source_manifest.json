@@ -22,5 +22,15 @@
     "last_modified": "Tue, 09 Jun 2026 15:19:22 GMT",
     "sha256": "6d7fdf1e7eaf9078b33a498be966163e07e368949dbbdf3736527842c51f7567",
     "source": "https://www.ncua.gov/files/publications/analysis/call-report-data-2026-03.zip"
+  },
+  "2026-06": {
+    "bytes": 8141577,
+    "checked_at": "2026-09-17T17:37:25+00:00",
+    "fingerprint": "last_modified:Mon, 14 Sep 2026 17:34:19 GMT",
+    "in_database": true,
+    "ingested_at": "2026-09-17T17:37:25+00:00",
+    "last_modified": "Mon, 14 Sep 2026 17:34:19 GMT",
+    "sha256": "9b67a6cf2ccc550a99db007fab157c23df4a66896c19c8cb71d15d9609d04cc3",
+    "source": "https://www.ncua.gov/files/publications/analysis/call-report-data-2026-06.zip"
   }
 }
