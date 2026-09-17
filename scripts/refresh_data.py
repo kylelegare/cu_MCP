@@ -11,7 +11,7 @@ Typical use::
     python scripts/refresh_data.py check
 
     # ingest a zip already on disk
-    python scripts/refresh_data.py ingest --zip call-report-data-2026-03.zip
+    python scripts/refresh_data.py ingest --zip call-report-data-2026-06.zip
 
     # download the newest cycle(s) and ingest them
     python scripts/refresh_data.py sync
