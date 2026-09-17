@@ -45,12 +45,31 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       pending: ${{ steps.probe.outputs.pending }}
+      open_prs: ${{ steps.open_pr.outputs.count }}
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: false # pointer stub is enough; see note above
+
+      # An unmerged refresh makes every later run look pending again, and each
+      # re-ingest pushes another ~139MB database into LFS for the same cycle.
+      # So scheduled runs stand down until the outstanding PR is dealt with.
+      - id: open_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(gh pr list --state open --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("data/refresh-"))] | length')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" -gt 0 ]; then
+            echo "## Refresh PR already open — scheduled run standing down" \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/setup-python@v5
         with:
@@ -80,7 +99,11 @@ jobs:
 
   refresh:
     needs: check
-    if: needs.check.outputs.pending == 'true' || inputs.force
+    # workflow_dispatch bypasses the stand-down: asking by hand means you want
+    # the run regardless of what is already open.
+    if: >-
+      (needs.check.outputs.pending == 'true' || inputs.force) &&
+      (github.event_name != 'schedule' || needs.check.outputs.open_prs == '0')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -130,5 +153,16 @@ jobs:
             echo '```'
           } > body.md
 
-          gh pr create --title "Refresh NCUA call report data" --body-file body.md \
-            --base "${{ github.ref_name }}" --head "$BRANCH"
+          if ! gh pr create --title "Refresh NCUA call report data" --body-file body.md \
+            --base "${{ github.ref_name }}" --head "$BRANCH"; then
+            # The commonest cause is the repo setting "Allow GitHub Actions to
+            # create and approve pull requests" being off. The branch is already
+            # pushed, so say how to finish by hand rather than just exiting 1.
+            {
+              echo "::error::Could not open the PR. Check Settings -> Actions ->"
+              echo "::error::General -> 'Allow GitHub Actions to create and approve"
+              echo "::error::pull requests'. Branch $BRANCH is pushed; open it at"
+              echo "::error::${{ github.server_url }}/${{ github.repository }}/compare/${{ github.ref_name }}...$BRANCH"
+            }
+            exit 1
+          fi
