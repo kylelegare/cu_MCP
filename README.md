@@ -70,7 +70,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## What's in the Data?
 
-- **13 quarters** of NCUA call report data (Q1 2023 through Q1 2026)
+- **14 quarters** of NCUA call report data (Q1 2023 through Q2 2026)
 - **~4,300 credit unions** per quarter (~60k rows total)
 - **15+ pre-calculated financial ratios:**
   - ROA, efficiency ratio, loan-to-share ratio, net worth ratio
@@ -108,7 +108,7 @@ python scripts/refresh_data.py check
 python scripts/refresh_data.py sync
 
 # Or load a zip you already downloaded
-python scripts/refresh_data.py ingest --zip call-report-data-2026-03.zip
+python scripts/refresh_data.py ingest --zip call-report-data-2026-06.zip
 ```
 
 Ingest backs up the database first, loads every quarterly table in one transaction,
