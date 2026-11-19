@@ -95,7 +95,7 @@ All credit union data originates from publicly available NCUA call reports. Plea
 ## Maintenance
 
 NCUA publishes a new call report cycle roughly 10 weeks after each quarter end, at a
-predictable URL: `https://www.ncua.gov/files/publications/analysis/call-report-data-YYYY-MM.zip`.
+predictable URL: `https://ncua.gov/files/publications/analysis/call-report-data-YYYY-MM.zip`.
 There is no notification feed, and revised cycles are re-published silently at the same
 URL — so [`scripts/refresh_data.py`](scripts/refresh_data.py) polls instead, recording each
 cycle's upstream `Last-Modified` in [`data/source_manifest.json`](data/source_manifest.json).
@@ -127,18 +127,24 @@ and opens a pull request when a cycle is published or revised — so a refresh i
 review-and-merge, not a chore you have to remember.
 
 Data lands once a quarter, so the workflow doesn't poll year-round. NCUA's system
-performance release comes in the first week of the third month after quarter close
-(~9-10 weeks), and the raw zips may post ahead of the announcement. So it checks
-**daily from mid-month-two through the announcement window** — Feb/May/Aug/Nov 14-28,
-then Mar/Jun/Sep/Dec 1-20 — plus a first-of-the-month backstop that catches revisions
-made outside the window. That's ~148 runs a year, each a single HEAD request, versus
-a couple of days' delay if it only ran weekly.
+performance release usually comes early in the third month after quarter close
+(~9-11 weeks; Q2 2026 posted September 14), and the raw zips may post ahead of the
+announcement. So it checks **daily from mid-month-two through the end of month three**
+— Feb/May/Aug/Nov 14-28, then all of Mar/Jun/Sep/Dec — plus a first-of-the-month
+backstop that catches revisions made outside the window. That's ~190 runs a year, each
+a handful of HEAD requests.
 
-For Q2 2026 (June 30 close) that means daily checks from August 14, with the data
-expected mid-to-late August and the announcement in the first week of September.
+Two things to know about the pull request it opens:
+
+- **Merge it.** While a `data/refresh-*` PR is open, scheduled runs stand down so they
+  don't re-ingest the same cycle — which also means nothing newer gets picked up until
+  the open PR is merged or closed.
+- The repo setting *Settings → Actions → General → "Allow GitHub Actions to create and
+  approve pull requests"* must be on, or the run pushes its branch and then fails to
+  open the PR.
 
 The check runs *without* Git LFS on purpose. It only needs `source_manifest.json`, and
-materializing the 132MB database weekly would spend most of a free-tier LFS bandwidth
+materializing the ~140MB database daily would blow through a free-tier LFS bandwidth
 allowance to learn that nothing changed. The full download happens only in the refresh
 job, roughly four times a year.
 

@@ -45,7 +45,8 @@ EXIT_CURRENT = 0
 EXIT_PENDING = 1
 EXIT_ERROR = 2
 
-NCUA_URL_TEMPLATE = "https://www.ncua.gov/files/publications/analysis/call-report-data-{cycle}.zip"
+# www.ncua.gov now 301s here; going direct halves the requests the CDN can reset.
+NCUA_URL_TEMPLATE = "https://ncua.gov/files/publications/analysis/call-report-data-{cycle}.zip"
 
 # ncua.gov sits behind a CDN that resets connections from datacenter IP ranges
 # when the request does not look like a browser. A bare custom User-Agent works
@@ -235,10 +236,21 @@ def download_cycle(cycle: str, destination: Optional[Path] = None) -> Path:
     url = NCUA_URL_TEMPLATE.format(cycle=cycle)
     destination = destination or DOWNLOAD_DIR / f"call-report-data-{cycle}.zip"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers=dict(DOWNLOAD_HEADERS))
     print(f"  downloading {url}")
-    with urllib.request.urlopen(request, timeout=300) as response, destination.open("wb") as handle:
-        shutil.copyfileobj(response, handle)
+    for attempt in range(PROBE_ATTEMPTS):
+        request = urllib.request.Request(url, headers=dict(DOWNLOAD_HEADERS))
+        try:
+            with urllib.request.urlopen(request, timeout=300) as response, destination.open("wb") as handle:
+                shutil.copyfileobj(response, handle)
+            break
+        except (urllib.error.URLError, OSError) as exc:
+            # The CDN resets CI connections often enough that probes already
+            # retry; a download that follows a good probe deserves the same.
+            if attempt + 1 == PROBE_ATTEMPTS:
+                raise RuntimeError(f"could not download {url}: {exc}") from exc
+            delay = 2 ** attempt
+            note(f"  {cycle}: download failed ({exc}); retrying in {delay}s")
+            time.sleep(delay)
     print(f"  saved {destination} ({destination.stat().st_size:,} bytes)")
     return destination
 
@@ -524,7 +536,7 @@ def record_ingest(cycle: str, zip_path: Optional[Path], remote: Optional[Dict[st
     if remote is None:
         try:
             remote = probe_cycle(cycle)
-        except urllib.error.URLError as exc:  # offline ingest of a local zip
+        except (RuntimeError, OSError) as exc:  # offline ingest of a local zip
             note(f"  could not reach NCUA to record a revision baseline: {exc}")
     remote = remote or {}
     manifest = load_manifest()
