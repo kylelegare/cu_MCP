@@ -92,7 +92,13 @@ def _ensure_database() -> None:
 
 def _get_connection() -> duckdb.DuckDBPyConnection:
     _ensure_database()
-    return duckdb.connect(str(DB_PATH), read_only=True)
+    # enable_external_access=false is the real sandbox: without it a query can
+    # read any file on the host (SELECT * FROM '/path/file.csv'), list
+    # directories with glob(), or fetch URLs, none of which the keyword checks
+    # in is_safe_query can reliably catch.
+    return duckdb.connect(
+        str(DB_PATH), read_only=True, config={"enable_external_access": False}
+    )
 
 
 def _serialize_value(value: Any) -> Any:
@@ -181,20 +187,25 @@ def search_credit_unions(query: str, min_assets: int = DEFAULT_MIN_ASSETS) -> Di
         else:
             effective_query = f"WITH filtered_data AS (SELECT * FROM cu_with_ratios WHERE assets >= {min_assets}) {stripped}"
 
-    def _run_query() -> pd.DataFrame:
-        with _get_connection() as conn:
-            return conn.execute(effective_query).fetchdf()
-
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_run_query)
-            result_df = future.result(timeout=QUERY_TIMEOUT_SECONDS)
-    except concurrent.futures.TimeoutError:
-        return {
-            "error": f"Query exceeded {QUERY_TIMEOUT_SECONDS} second timeout",
-            "query": query,
-            "hint": "Simplify filters or aggregate before returning large result sets",
-        }
+        conn = _get_connection()
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(lambda: conn.execute(effective_query).fetchdf())
+                try:
+                    result_df = future.result(timeout=QUERY_TIMEOUT_SECONDS)
+                except concurrent.futures.TimeoutError:
+                    # Giving up on the future is not enough: the executor waits
+                    # for its worker on exit, so the query must be cancelled or
+                    # this call blocks until it finishes on its own.
+                    conn.interrupt()
+                    return {
+                        "error": f"Query exceeded {QUERY_TIMEOUT_SECONDS} second timeout",
+                        "query": query,
+                        "hint": "Simplify filters or aggregate before returning large result sets",
+                    }
+        finally:
+            conn.close()
     except Exception as exc:  # pragma: no cover - DuckDB exceptions vary by query
         return {
             "error": f"Query execution failed: {exc}",
